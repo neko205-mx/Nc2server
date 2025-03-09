@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>在线设备监控</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .status-badge {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .online { background-color: #28a745; }
+        .offline { background-color: #dc3545; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .bot-tooltip {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            pointer-events: none;
+            min-width: 250px;
+        }
+
+        .tooltip-header {
+            border-bottom: 1px solid #eee;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>在线设备监控 <span id="online-count"></span></h1>
+
+        <!-- 设备表格 -->
+        <table id="bot-table">
+            <thead>
+                <tr>
+                    <th>状态</th>
+                    <th>IP地址</th>
+                    <th>地理位置</th>
+                    <th>最后在线</th>
+                    <th>操作系统</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 数据由 JavaScript 动态填充 -->
+            </tbody>
+        </table>
+
+        <!-- 悬浮信息卡片 -->
+        <div id="tooltip" class="bot-tooltip" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 动态加载设备数据
+        function loadBots() {
+            fetch('/api/bots')
+                .then(response => response.json())
+                .then(data => {
+                    updateTable(data.bots);
+                    updateOnlineCount(data.bots);
+                });
+        }
+
+        // 更新表格内容
+        function updateTable(bots) {
+            const tbody = document.querySelector('#bot-table tbody');
+            tbody.innerHTML = bots.map(bot => `
+                <tr data-bot-id="${bot.id}"
+                    onmouseover="showTooltip(event, ${JSON.stringify(bot)})"
+                    onmouseout="hideTooltip()">
+                    <td>
+                        <span class="status-badge ${bot.status}"></span>
+                        ${bot.status === 'online' ? '在线' : '离线'}
+                    </td>
+                    <td>${bot.ip}</td>
+                    <td>${bot.geo}</td>
+                    <td>${new Date(bot.last_online).toLocaleString()}</td>
+                    <td>${bot.os}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 显示悬浮信息卡片
+        function showTooltip(event, bot) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${event.pageX + 15}px`;
+            tooltip.style.top = `${event.pageY + 15}px`;
+
+            tooltip.innerHTML = `
+                <div class="tooltip-header">
+                    <h3>${bot.ip}</h3>
+                    <p>状态: <strong>${bot.status}</strong></p>
+                </div>
+                <div>
+                    <p>操作系统: ${bot.os}</p>
+                    <p>地理位置: ${bot.geo}</p>
+                    <p>最后在线: ${new Date(bot.last_online).toLocaleString()}</p>
+                    <p>CPU使用率:
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${bot.cpu_usage}%"></div>
+                        </div>
+                        ${bot.cpu_usage}%
+                    </p>
+                    <p>内存使用率:
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${bot.memory_usage}%"></div>
+                        </div>
+                        ${bot.memory_usage}%
+                    </p>
+                </div>
+            `;
+        }
+
+        // 隐藏信息卡片
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // 更新在线数量
+        function updateOnlineCount(bots) {
+            const onlineCount = bots.filter(bot => bot.status === 'online').length;
+            document.getElementById('online-count').innerHTML = `
+                <small>(${onlineCount} 在线 / ${bots.length} 总设备)</small>
+            `;
+        }
+
+        // 每5秒刷新一次数据
+        setInterval(loadBots, 5000);
+        loadBots(); // 初始加载
+    </script>
+</body>
+</html>

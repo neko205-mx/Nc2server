@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>命令控制台</title>
+    <style>
+        body { font-family: Consolas, monospace; margin: 20px; }
+        #console {
+            width: 800px;
+            height: 500px;
+            border: 1px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+            background: #000;
+            color: #0f0;
+        }
+        .command { color: #0ff; }
+        .output { margin-left: 20px; }
+        .timestamp { color: #888; }
+        #commandInput {
+            width: 700px;
+            padding: 5px;
+            background: #000;
+            color: #0f0;
+            border: 1px solid #333;
+        }
+        #executeButton {
+            padding: 5px 10px;
+            background: #333;
+            color: #0f0;
+            border: 1px solid #333;
+            cursor: pointer;
+        }
+        #id{
+            width: 700px;
+            padding: 5px;
+            background: #000;
+            color: #0f0;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>命令执行控制台</h1>
+    <div id="console"></div>
+    <input type="text" id="commandInput" placeholder="输入命令...">
+    <input type="text" id="id" placeholder="设备id">
+    <button id="executeButton">执行</button>
+
+    <script>
+        const consoleDiv = document.getElementById('console');
+        const commandInput = document.getElementById('commandInput');
+        const executeButton = document.getElementById('executeButton');
+        const idInput = document.getElementById('id')
+
+        // 添加时间戳
+        function getTimestamp() {
+            const now = new Date();
+            return `[${now.toLocaleTimeString()}]`;
+        }
+
+        // 显示命令和输出
+        function appendCommandOutput(command, output) {
+            const timestamp = getTimestamp();
+            consoleDiv.innerHTML += `
+                <div class="timestamp">${timestamp}</div>
+                <div class="command">> ${command}</div>
+                <div class="output">${output}</div>
+            `;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight; // 滚动到底部
+        }
+
+        // 发送命令到后端
+        executeButton.addEventListener('click', async () => {
+            const command = commandInput.value.trim();
+            const id = idInput.value.trim();
+            if (!command) return;
+
+            try {
+                const response = await fetch('/bots/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command,id})
+                });
+                const data = await response.json();
+                appendCommandOutput(command, data.output);
+            } catch (error) {
+                appendCommandOutput(command, `错误: ${error.message}`);
+            }
+
+            commandInput.value = ''; // 清空输入框
+        });
+
+        // 允许按回车键执行命令
+        commandInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                executeButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
