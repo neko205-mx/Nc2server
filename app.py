@@ -47,9 +47,32 @@ def bot_execute():
     if not data or 'command' not in data:
         return jsonify({'error': '未提供命令'}), 400
     try:
-        # result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        # output = result.stdout if result.returncode == 0 else result.stderr
-        return jsonify({'output': output})  # 确保返回的是 JSON
+        # 解码 Base64 请求体
+        encoded_data = request.get_data(as_text=True)
+        decoded_data = base64.b64decode(encoded_data).decode('utf-8')
+
+        # 解析 ID 和命令（格式：ID:命令）
+        if ':' not in decoded_data:
+            return "Invalid format", 400
+        checkid, command = decoded_data.split(':', 1)
+
+        # 通过 ID 查找 IP
+        ip = checkbotid(checkid)
+        if not ip:
+            return base64.b64encode("设备不存在".encode('utf-8')).decode('utf-8')
+
+        # Socket 通信
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cmd:
+            cmd.settimeout(10)
+            cmd.connect((ip, 8723))
+            cmd.send(command.encode('utf-8'))
+            # 接收响应
+            output = cmd.recv(1024)
+            if not output:
+                output = base64.b64encode(f"No information".encode('utf-8')).decode('utf-8')
+                return output
+            return output, 200
+
     except Exception as e:
         return jsonify({'error': f'执行命令时出错: {str(e)}'}), 500
 
