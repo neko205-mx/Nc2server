@@ -77,5 +77,11 @@ def bot_execute():
         return jsonify({'error': f'执行命令时出错: {str(e)}'}), 500
 
 
+def checkbotid(checkid):
+    for bot in bots:
+        if bot["id"] == int(checkid):
+            return bot["ip"]
+    return None
+
 if __name__ == '__main__':
     app.run()
