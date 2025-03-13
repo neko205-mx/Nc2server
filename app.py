@@ -83,5 +83,52 @@ def checkbotid(checkid):
             return bot["ip"]
     return None
 
+@app.route('/api/getbot', methods=['GET', 'POST']) # 还没测试
+def bot_checkbot():
+    db_file = "db/bots.db"
+    db_dir = os.path.dirname(db_file)
+
+    # 确保数据库目录存在
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+    need_init = not os.path.exists(db_file)
+    db_conn = sqlite3.connect(db_file)
+    cursor = db_conn.cursor()
+
+    if need_init:
+        create_table_sql = '''
+                CREATE TABLE bots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip TEXT NOT NULL,
+                    status TEXT CHECK(status IN ('online', 'offline')),
+                    geo TEXT DEFAULT 'Unknown',
+                    last_online DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    os TEXT,
+                    cpu_usage REAL ,
+                    memory_usage REAL 
+                );
+                '''
+        cursor.execute(create_table_sql)
+        db_conn.commit()
+        return jsonify({'success': True, 'message': '数据库及表结构初始化完成'})
+    if request.method == 'POST':
+        data = {
+            "ip": request.form.get('ip'),
+            "status": request.form.get('status'),
+            "geo": request.form.get('geo'),
+            "os": request.form.get('os'),
+            "cpu_usage": float(request.form.get('cpu_usage')),
+            "memory_usage": float(request.form.get('memory_usage'))
+        }
+
+        insert_sql = '''
+        INSERT INTO bots (ip, status, geo, os, cpu_usage, memory_usage)
+        VALUES (?, ?, ?, ?, ?, ?)
+        '''
+        cursor.execute(insert_sql, data)
+        db_conn.commit()
+    return jsonify({'success': True, 'message': '无需再次初始化'})
+
+
 if __name__ == '__main__':
     app.run()
