@@ -46,56 +46,67 @@
     <input type="text" id="id" placeholder="设备id">
     <button id="executeButton">执行</button>
 
-    <script>
-        const consoleDiv = document.getElementById('console');
-        const commandInput = document.getElementById('commandInput');
-        const executeButton = document.getElementById('executeButton');
-        const idInput = document.getElementById('id')
+   <script>
+    const consoleDiv = document.getElementById('console');
+    const commandInput = document.getElementById('commandInput');
+    const executeButton = document.getElementById('executeButton');
+    const idInput = document.getElementById('id');
 
-        // 添加时间戳
-        function getTimestamp() {
-            const now = new Date();
-            return `[${now.toLocaleTimeString()}]`;
+    // Base64 编码函数
+    function encodeBase64(str) {
+        return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    // Base64 解码函数
+    function decodeBase64(b64Str) {
+        return decodeURIComponent(escape(atob(b64Str)));
+    }
+
+    // 显示命令和输出
+    function appendCommandOutput(command, output) {
+        const timestamp = `[${new Date().toLocaleTimeString()}]`;
+        consoleDiv.innerHTML += `
+            <div class="timestamp">${timestamp}</div>
+            <div class="command">> ${command}</div>
+            <div class="output">${output}</div>
+        `;
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    // 发送命令（使用 Base64）
+    executeButton.addEventListener('click', async () => {
+        const command = commandInput.value.trim();
+        const id = idInput.value.trim();
+        if (!command) return;
+
+        try {
+            // 构造数据并编码
+            const rawData = `${id}:${command}\n`; // 格式：ID:命令
+            const encodedData = encodeBase64(rawData);
+
+            // 发送请求
+            const response = await fetch('/bots/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' }, // 使用纯文本格式
+                body: encodedData
+            });
+
+            // 解码响应
+            const encodedOutput = await response.text();
+            const decodedOutput = decodeBase64(encodedOutput);
+
+            appendCommandOutput(command, decodedOutput);
+        } catch (error) {
+            appendCommandOutput(command, `错误: ${error.message}`);
         }
 
-        // 显示命令和输出
-        function appendCommandOutput(command, output) {
-            const timestamp = getTimestamp();
-            consoleDiv.innerHTML += `
-                <div class="timestamp">${timestamp}</div>
-                <div class="command">> ${command}</div>
-                <div class="output">${output}</div>
-            `;
-            consoleDiv.scrollTop = consoleDiv.scrollHeight; // 滚动到底部
-        }
+        commandInput.value = '';
+    });
 
-        // 发送命令到后端
-        executeButton.addEventListener('click', async () => {
-            const command = commandInput.value.trim();
-            const id = idInput.value.trim();
-            if (!command) return;
-
-            try {
-                const response = await fetch('/bots/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command,id})
-                });
-                const data = await response.json();
-                appendCommandOutput(command, data.output);
-            } catch (error) {
-                appendCommandOutput(command, `错误: ${error.message}`);
-            }
-
-            commandInput.value = ''; // 清空输入框
-        });
-
-        // 允许按回车键执行命令
-        commandInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                executeButton.click();
-            }
-        });
-    </script>
+    // 回车键执行
+    commandInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') executeButton.click();
+    });
+</script>
 </body>
 </html>

