@@ -1,3 +1,4 @@
+{#全是ai写的 和我半毛钱关系没有#}
 <!DOCTYPE html>
 <html>
 <head>
@@ -79,8 +80,6 @@
 <body>
     <div class="container">
         <h1>在线设备监控 <span id="online-count"></span></h1>
-
-        <!-- 设备表格 -->
         <table id="bot-table">
             <thead>
                 <tr>
@@ -91,32 +90,34 @@
                     <th>操作系统</th>
                 </tr>
             </thead>
-            <tbody>
-                <!-- 数据由 JavaScript 动态填充 -->
-            </tbody>
+            <tbody></tbody>
         </table>
-
-        <!-- 悬浮信息卡片 -->
         <div id="tooltip" class="bot-tooltip" style="display: none;"></div>
     </div>
 
     <script>
-        // 动态加载设备数据
+        let botsData = []; // 存储设备数组
+
+        // 加载数据
         function loadBots() {
             fetch('/api/bots')
                 .then(response => response.json())
-                .then(data => {
-                    updateTable(data.bots);
-                    updateOnlineCount(data.bots);
+                .then(bots => {
+                    botsData = bots;
+                    updateTable(bots);
+                    updateOnlineCount(bots);
+                })
+                .catch(error => {
+                    console.error('加载数据失败:', error);
                 });
         }
 
-        // 更新表格内容
+        // 更新表格
         function updateTable(bots) {
             const tbody = document.querySelector('#bot-table tbody');
             tbody.innerHTML = bots.map(bot => `
                 <tr data-bot-id="${bot.id}"
-                    onmouseover="showTooltip(event, ${JSON.stringify(bot)})"
+                    onmouseover="showTooltip(event, ${bot.id})"
                     onmouseout="hideTooltip()">
                     <td>
                         <span class="status-badge ${bot.status}"></span>
@@ -124,14 +125,23 @@
                     </td>
                     <td>${bot.ip}</td>
                     <td>${bot.geo}</td>
-                    <td>${new Date(bot.last_online).toLocaleString()}</td>
+                    <td>${formatDate(bot.last_online)}</td>
                     <td>${bot.os}</td>
                 </tr>
             `).join('');
         }
 
-        // 显示悬浮信息卡片
-        function showTooltip(event, bot) {
+        // 格式化日期
+        function formatDate(dateString) {
+            const isoDate = dateString.replace(' ', 'T') + 'Z';
+            return new Date(isoDate).toLocaleString();
+        }
+
+        // 显示悬浮卡片
+        function showTooltip(event, botId) {
+            const bot = botsData.find(b => b.id === botId);
+            if (!bot) return;
+
             const tooltip = document.getElementById('tooltip');
             tooltip.style.display = 'block';
             tooltip.style.left = `${event.pageX + 15}px`;
@@ -145,7 +155,7 @@
                 <div>
                     <p>操作系统: ${bot.os}</p>
                     <p>地理位置: ${bot.geo}</p>
-                    <p>最后在线: ${new Date(bot.last_online).toLocaleString()}</p>
+                    <p>最后在线: ${formatDate(bot.last_online)}</p>
                     <p>CPU使用率:
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: ${bot.cpu_usage}%"></div>
@@ -162,7 +172,7 @@
             `;
         }
 
-        // 隐藏信息卡片
+        // 隐藏卡片
         function hideTooltip() {
             document.getElementById('tooltip').style.display = 'none';
         }
@@ -175,9 +185,9 @@
             `;
         }
 
-        // 每5秒刷新一次数据
+        // 每5秒刷新
         setInterval(loadBots, 5000);
-        loadBots(); // 初始加载
+        loadBots();
     </script>
 </body>
 </html>
